@@ -12,7 +12,7 @@
  * SPI MISO    MISO         12 / ICSP-1   50        D12        ICSP-1           14
  * SPI SCK     SCK          13 / ICSP-3   52        D13        ICSP-3           15
  * 
- * Pin layout for led string
+ * Pin layout for led strip
  * -----------------------------------------------------------------------------------------
  * DIN         DIN                                  D8
  */
@@ -23,8 +23,9 @@
 
 #define RST_PIN         9          // Configurable, see typical pin layout above
 #define SS_PIN          10         // Configurable, see typical pin layout above
-#define STR_DIN_PIN     8          // Data input pin for led string 
+#define STR_DIN_PIN     8          // Data input pin for led strip
 #define LED_COUNT       60
+#define DELAY           3000
 
 //Program states
 enum states{
@@ -35,16 +36,51 @@ enum states{
   refusal,
 } state = closing;
 
+// Instances
+MFRC522 mfrc522(SS_PIN, RST_PIN);     // Create MFRC522 instance
+PololuLedStrip<STR_DIN_PIN> ledStrip; // Create ledStrip instance
 
-MFRC522 mfrc522(SS_PIN, RST_PIN);  // Create MFRC522 instance
+// Buffer for holding collor
+rgb_color colors[LED_COUNT];
 
+// Led strip handling
+void set_strip_color(states state){
+  rgb_color color;
+  switch ( state ) {
+     
+    case access:
+      color.red = 0;
+      color.green = 255;
+      color.blue = 0;
+     break;
+     
+     case refusal:
+      color.red = 255;
+      color.green = 0;
+      color.blue = 0;
+     break;
+
+     case waiting:
+      color.red = 0;
+      color.green = 0;
+      color.blue = 255;
+     break;
+  }
+
+  // Update the colors buffer.
+  for(uint16_t i = 0; i < LED_COUNT; i++){
+       colors[i] = color;
+  }
+
+  // Write to the LED strip.
+  ledStrip.write(colors, LED_COUNT);
+  
+}
 
 void setup() {
   Serial.begin(9600);   // Initialize serial communications with the PC
-  //while (!Serial);    // Do nothing if no serial port is opened (added for Arduinos based on ATMEGA32U4)
-  SPI.begin();      // Init SPI bus
+  SPI.begin();          // Init SPI bus
   mfrc522.PCD_Init();   // Init MFRC522
- // mfrc522.PCD_DumpVersionToSerial();  // Show details of PCD - MFRC522 Card Reader details
   
 }
 
@@ -69,22 +105,36 @@ void loop() {
     case access:
       Serial.println("access");
       //led to access mode
+      set_strip_color(access);
+      
       //Open lock
+      
       //take a brake
+      delay(DELAY);
+      
       state = closing;
      break;
 
     case refusal:
       Serial.println("refusal");
+      
       //led to refusal
+      set_strip_color(refusal);
+      
       //take a break
+      delay(DELAY / 3);
+      
       state = closing;
     break;
 
     case closing:
       Serial.println("closing");
+      
       //lock on
+      
       //led waiting mode
+      set_strip_color(waiting);
+      
       state = waiting;
     break;
   }
