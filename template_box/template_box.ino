@@ -20,6 +20,8 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <PololuLedStrip.h>
+#include "cards_list.h"
+
 
 #define RST_PIN         9          // Configurable, see typical pin layout above
 #define SS_PIN          10         // Configurable, see typical pin layout above
@@ -43,44 +45,15 @@ PololuLedStrip<STR_DIN_PIN> ledStrip; // Create ledStrip instance
 // Buffer for holding collor
 rgb_color colors[LED_COUNT];
 
-// Led strip handling
-void set_strip_color(states state){
-  rgb_color color;
-  switch ( state ) {
-     
-    case access:
-      color.red = 0;
-      color.green = 255;
-      color.blue = 0;
-     break;
-     
-     case refusal:
-      color.red = 255;
-      color.green = 0;
-      color.blue = 0;
-     break;
-
-     case waiting:
-      color.red = 0;
-      color.green = 0;
-      color.blue = 255;
-     break;
-  }
-
-  // Update the colors buffer.
-  for(uint16_t i = 0; i < LED_COUNT; i++){
-       colors[i] = color;
-  }
-
-  // Write to the LED strip.
-  ledStrip.write(colors, LED_COUNT);
-  
-}
+// Functions
+void set_strip_color(states state);
+bool card_in_list(byte* card);
 
 void setup() {
   Serial.begin(9600);   // Initialize serial communications with the PC
   SPI.begin();          // Init SPI bus
   mfrc522.PCD_Init();   // Init MFRC522
+  set_strip_color(waiting);
   
 }
 
@@ -89,16 +62,24 @@ void loop() {
   switch ( state ) {
 
     case waiting:
-      Serial.println("waiting");
-      if (  mfrc522.PICC_IsNewCardPresent() ||  mfrc522.PICC_ReadCardSerial() )
-        state = reading;
+      //Serial.println("waiting");
+      if ( mfrc522.PICC_IsNewCardPresent() )
+         state = reading;
+      
        break;
 
     case reading:
       Serial.println("reading");
+      mfrc522.PICC_ReadCardSerial();
+      for (byte i = 0; i < mfrc522.uid.size; i++){
+        //Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? " 0" : " ");
+        Serial.println(mfrc522.uid.uidByte[i]/*, HEX*/);
+      }
+      Serial.println();
       // if mfrc.uid in list
-      //    state = access;
-      //else
+      if ( card_in_list( mfrc522.uid.uidByte ) )
+          state = access;
+      else
          state = refusal; 
       break;
 
@@ -164,4 +145,49 @@ void loop() {
   }
   Serial.println();
  */
+}
+
+// Led strip handling
+void set_strip_color(states state){
+  rgb_color color;
+  switch ( state ) {
+     
+    case access:
+      color.red = 0;
+      color.green = 255;
+      color.blue = 0;
+     break;
+     
+     case refusal:
+      color.red = 255;
+      color.green = 0;
+      color.blue = 0;
+     break;
+
+     case waiting:
+      color.red = 0;
+      color.green = 0;
+      color.blue = 255;
+     break;
+  }
+
+  // Update the colors buffer.
+  for(uint16_t i = 0; i < LED_COUNT; i++){
+       colors[i] = color;
+  }
+
+  // Write to the LED strip.
+  ledStrip.write(colors, LED_COUNT);
+  
+}
+
+// Search card in list
+bool card_in_list(byte* card){
+  bool result = false;
+  for ( byte i = 0; i < CARD_NUMB && !result; i++){
+      result = true;
+      for ( byte j = 0; j < KEY_LENGTH && result; j++)
+        result = card[j] == cards_list[i][j];
+  }
+  return result;
 }
