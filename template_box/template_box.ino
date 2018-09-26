@@ -1,4 +1,4 @@
-/*
+  /*
  * 
  * Typical pin layout used:
  * -----------------------------------------------------------------------------------------
@@ -15,19 +15,30 @@
  * Pin layout for led strip
  * -----------------------------------------------------------------------------------------
  * DIN         DIN                                  D8
+ *  -----------------------------------------------------------------------------------------
+ *  Presentation of data in EEPROM:
+ *
+ *  Byte 0       Byte 1        Byte 2 .. card_count * key_lenght + 2
+ * |------------|------------|------------|..
+ * | Card count | Key length | Key_value  |...          
+ * |------------|------------|------------|...
+ *
  */
 
 #include <SPI.h>
 #include <MFRC522.h>
 #include <PololuLedStrip.h>
-#include "cards_list.h"
+#include <EEPROM.h>
+
 
 
 #define RST_PIN         9          // Configurable, see typical pin layout above
 #define SS_PIN          10         // Configurable, see typical pin layout above
 #define STR_DIN_PIN     8          // Data input pin for led strip
+#define BEGIN_BYTE      2          // First byte to read cads keys
 #define LED_COUNT       60
 #define DELAY           3000
+
 
 //Program states
 enum states{
@@ -50,6 +61,7 @@ void set_strip_color(states state);
 bool card_in_list(byte* card);
 
 void setup() {
+   
   Serial.begin(9600);   // Initialize serial communications with the PC
   SPI.begin();          // Init SPI bus
   mfrc522.PCD_Init();   // Init MFRC522
@@ -183,11 +195,15 @@ void set_strip_color(states state){
 
 // Search card in list
 bool card_in_list(byte* card){
+  int cards_count = EEPROM.read(0);
+  int key_length =  EEPROM.read(1);
+  byte total_bytes = cards_count * key_length;
   bool result = false;
-  for ( byte i = 0; i < CARD_NUMB && !result; i++){
+  
+  for ( byte i = BEGIN_BYTE; i < total_bytes && !result; i += cards_count + 1 ){
       result = true;
-      for ( byte j = 0; j < KEY_LENGTH && result; j++)
-        result = card[j] == cards_list[i][j];
+      for ( byte j = 0; j < key_length && result; j++)
+        result = card[j] == EEPROM.read(i + j);
   }
   return result;
 }
