@@ -184,7 +184,7 @@ void set_strip_color(states state){
 // Search card in list
 bool card_in_list(byte* card){
   bool result = false;
-  for ( byte i = 0; i < CARD_NUMB && !result; i++){
+  for ( byte i = 0; i < CARD_COUNT && !result; i++){
       result = true;
       for ( byte j = 0; j < KEY_LENGTH && result; j++)
         result = card[j] == cards_list[i][j];
