@@ -5,7 +5,7 @@
 
 #define STORAGE_SIZE	5 
 #define ZERO_ADDR	    0
-#define SHIFT         1
+#define SHIFT         2
 
 
 class EEPROMproc{
@@ -14,6 +14,7 @@ public:
 	EEPROMproc(){
 		curr_addr = 0;
 		EEPROM.write(ZERO_ADDR, 0);
+    EEPROM.write(ZERO_ADDR + 1, STORAGE_SIZE);
 	}
 	
 	void write(byte *v){			// Write key in memory
